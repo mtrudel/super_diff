@@ -18,10 +18,15 @@ class CustomZeusPlan < Zeus::Plan
     :confirm_started,
   )
 
-  def initialize(using_outside_of_zeus: false, color_enabled: false)
+  def initialize(
+    using_outside_of_zeus: false,
+    color_enabled: false,
+    configuration: {}
+  )
     @test_plan = TestPlan.new(
       using_outside_of_zeus: using_outside_of_zeus,
       color_enabled: color_enabled,
+      configuration: configuration,
     )
   end
 end

@@ -1,5 +1,59 @@
 # Changelog
 
+## Unreleased
+
+### Breaking changes
+
+* Continuing with the previous release, diff formatters are now gone in favor of
+  operation tree flatteners. If you have a custom diff formatter, you will want
+  to inherit from SuperDiff::DiffFormatters::Base (or an appropriate subclass).
+  Additionally, the `add_extra_diff_formatter_class` configuration option has
+  disappeared; instead, operation tree classes are expected to have an
+  `operation_tree_flattener_class` method.
+
+### Features
+
+* Add the ability to compress long diffs by eliding unimportant sections. This
+  functionality is not enabled by default; rather, you will need to activate it
+  and then configure it. At a minimum, you will want to add something like this
+  to your spec helper:
+
+  ``` ruby
+  SuperDiff.configure do |config|
+    config.diff_elision_enabled = true
+    config.diff_elision_threshold = 10
+  end
+  ```
+
+  Here, `diff_elision_threshold` controls the minimum number of lines that are
+  changed that you want to see in between lines that are unchanged (everything
+  else will be elided as much as possible in a way that makes sense). Here is
+  another possible configuration:
+
+  ``` ruby
+  SuperDiff.configure do |config|
+    config.diff_elision_enabled = true
+    config.diff_elision_threshold = 10
+    config.diff_elision_padding = 5
+  end
+  ```
+
+  Here, `diff_elision_padding` controls the amount of context that you want to
+  preserve around changed lines in the diff. This makes this functionality act
+  closer to diffs you might see in a version control system.
+
+### Features
+
+* Update inspection of Doubles to include stubbed methods and their values.
+
+### Improvements
+
+* Change how objects are inspected on a single line so that instance variables
+  are always sorted.
+* Make a tweak to how hashes are presented in diffs and inspections: a hash that
+  has a mixture of symbols and strings will be presented as though all keys are
+  strings (i.e. hashrocket syntax).
+
 ## 0.5.1 - 2020-06-19
 
 ### Bug fixes

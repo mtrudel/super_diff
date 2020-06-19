@@ -372,7 +372,7 @@ shared_examples_for "integration with ActiveRecord" do
             expectation: proc {
               line do
                 plain "Expected "
-                beta %|[#<SuperDiff::Test::Models::ActiveRecord::Query @results=#<ActiveRecord::Relation [#<SuperDiff::Test::Models::ActiveRecord::Person id: 1, name: "Murphy", age: 20>]>>]|
+                beta %|[#<SuperDiff::Test::Models::ActiveRecord::Query @results=#<ActiveRecord::Relation [#<SuperDiff::Test::Models::ActiveRecord::Person id: 1, age: 20, name: "Murphy">]>>]|
               end
 
               line do
@@ -389,7 +389,8 @@ shared_examples_for "integration with ActiveRecord" do
               # alpha_line %|-         age: 19,|  # TODO
               alpha_line %|-         age: 19|
               beta_line  %|+         age: 20,|
-              alpha_line %|-         name: "John"|
+              # alpha_line %|-         name: "John"|  # TODO
+              alpha_line %|-         name: "John",|
               beta_line  %|+         name: "Murphy"|
               plain_line %|        }>|
               plain_line %|      ]>|

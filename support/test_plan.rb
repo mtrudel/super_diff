@@ -7,9 +7,16 @@ class TestPlan
   SUPPORT_DIR = PROJECT_DIRECTORY.join("spec/support")
   INSIDE_INTEGRATION_TEST = true
 
-  def initialize(using_outside_of_zeus: false, color_enabled: false)
+  def initialize(
+    using_outside_of_zeus: false,
+    color_enabled: false,
+    configuration: {}
+  )
     @using_outside_of_zeus = using_outside_of_zeus
     @color_enabled = color_enabled
+    @configuration = configuration
+
+    @pry_enabled = true
     @libraries = []
   end
 
@@ -30,6 +37,13 @@ class TestPlan
       require "pry-nav"
     end
 
+    # Fix Zeus for 0.13.0+
+    Pry::Pager.class_eval do
+      def best_available
+        Pry::Pager::NullPager.new(pry_instance.output)
+      end
+    end
+
     require "rspec"
 
     require "super_diff"
@@ -44,6 +58,21 @@ class TestPlan
     RSpec.configure do |config|
       config.include SuperDiff::IntegrationTests
     end
+  end
+
+  def boot_active_record
+    require "active_record"
+
+    ActiveRecord::Base.establish_connection(
+      adapter: "sqlite3",
+      database: ":memory:",
+    )
+
+    Dir.glob(SUPPORT_DIR.join("models/active_record/*.rb")).sort.each do |path|
+      require path
+    end
+  rescue LoadError
+    # active_record may not be in the Gemfile, so that's okay
   end
 
   def run_plain_test
@@ -64,7 +93,7 @@ class TestPlan
 
   private
 
-  attr_reader :libraries
+  attr_reader :libraries, :configuration
 
   def using_outside_of_zeus?
     @using_outside_of_zeus
@@ -72,6 +101,10 @@ class TestPlan
 
   def color_enabled?
     @color_enabled
+  end
+
+  def pry_enabled?
+    @pry_enabled
   end
 
   def reconnect_activerecord
@@ -97,6 +130,14 @@ class TestPlan
       config.color_mode = color_enabled? ? :on : :off
     end
 
+    SuperDiff.configuration.merge!(
+      configuration.merge(color_enabled: color_enabled?)
+    )
+
+    if !pry_enabled?
+      ENV["DISABLE_PRY"] = "true"
+    end
+
     yield if block_given?
 
     libraries.each do |library|
@@ -108,32 +149,18 @@ class TestPlan
     end
   end
 
-  def boot_active_record
-    require "active_record"
-
-    ActiveRecord::Base.establish_connection(
-      adapter: "sqlite3",
-      database: ":memory:",
-    )
-
-    RSpec.configuration do |config|
-      config.before do
-        SuperDiff::Test::Models::ActiveRecord::Person.delete_all
-        SuperDiff::Test::Models::ActiveRecord::ShippingAddress.delete_all
-      end
-    end
-
-    Dir.glob(SUPPORT_DIR.join("models/active_record/*.rb")).sort.each do |path|
-      require path
-    end
-  rescue LoadError
-    # active_record may not be in the Gemfile, so that's okay
-  end
-
   def option_parser
     @_option_parser ||= OptionParser.new do |opts|
       opts.on("--[no-]color", "Enable or disable color.") do |value|
         @color_enabled = value
+      end
+
+      opts.on("--[no-]pry", "Disable Pry.") do |value|
+        @pry_enabled = value
+      end
+
+      opts.on("--configuration CONFIG", String, "Configure SuperDiff.") do |json|
+        @configuration = JSON.parse(json).transform_keys(&:to_sym)
       end
     end
   end

@@ -33,7 +33,8 @@ RSpec.describe "Integration with RSpec's #match_array matcher", type: :integrati
             plain_line %|    "Marty",|
             plain_line %|    "Jennifer",|
             plain_line %|    "Doc",|
-            alpha_line %|-   "Einie"|
+            # alpha_line %|-   "Einie"|  # TODO
+            alpha_line %|-   "Einie",|
             plain_line %|  ]|
           },
         )
@@ -132,7 +133,8 @@ RSpec.describe "Integration with RSpec's #match_array matcher", type: :integrati
               plain_line %|    "Einie",|
               plain_line %|    "Lorraine McFly",|
               alpha_line %|-   "Biff Tannen",|
-              alpha_line %|-   "George McFly"|
+              # alpha_line %|-   "George McFly"|  # TODO
+              alpha_line %|-   "George McFly",|
               plain_line %|  ]|
             },
           )
@@ -243,7 +245,8 @@ RSpec.describe "Integration with RSpec's #match_array matcher", type: :integrati
               plain_line %|    "Lorraine McFly",|
               alpha_line %|-   "Biff Tannen",|
               alpha_line %|-   /Georg McFly/,|
-              alpha_line %|-   /Lorrain McFly/|
+              # alpha_line %|-   /Lorrain McFly/|  # TODO
+              alpha_line %|-   /Lorrain McFly/,|
               plain_line %|  ]|
             },
           )
@@ -333,7 +336,7 @@ RSpec.describe "Integration with RSpec's #match_array matcher", type: :integrati
               line do
                 plain "           Expected "
                 # rubocop:disable Metrics/LineLength
-                beta %|[{ foo: "bar" }, #<Double (anonymous)>, { blargh: "riddle" }]|
+                beta %|[{ foo: "bar" }, #<Double (anonymous) baz: "qux">, { blargh: "riddle" }]|
                 # rubocop:enable Metrics/LineLength
               end
 
@@ -351,13 +354,16 @@ RSpec.describe "Integration with RSpec's #match_array matcher", type: :integrati
               plain_line %|    {|
               plain_line %|      foo: "bar"|
               plain_line %|    },|
-              plain_line %|    #<Double (anonymous)>,|
+              plain_line %|    #<Double (anonymous) {|
+              plain_line %|      baz: "qux"|
+              plain_line %|    }>,|
               plain_line %|    {|
               plain_line %|      blargh: "riddle"|
               plain_line %|    },|
               alpha_line %|-   #<a collection containing exactly (|
               alpha_line %|-     "zing"|
-              alpha_line %|-   )>|
+              # alpha_line %|-   )>|  # TODO
+              alpha_line %|-   )>,|
               plain_line %|  ]|
             },
           )

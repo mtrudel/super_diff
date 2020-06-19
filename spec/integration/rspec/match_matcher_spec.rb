@@ -772,7 +772,8 @@ RSpec.describe "Integration with RSpec's #match matcher", type: :integration do
               # beta_line  %|+   zip: "90382",|  # FIXME
               alpha_line %|-   zip: "91234"|
               beta_line  %|+   zip: "90382"|
-              alpha_line %|-   something_else: "blah"|
+              # alpha_line %|-   something_else: "blah"|  # TODO
+              alpha_line %|-   something_else: "blah",|
               plain_line %|  }>|
             },
           )
@@ -888,7 +889,8 @@ RSpec.describe "Integration with RSpec's #match matcher", type: :integration do
             # alpha_line %|-     zip: "91234",|  # FIXME
             alpha_line %|-     zip: "91234"|
             beta_line  %|+     zip: "90382"|
-            alpha_line %|-     something_else: "blah"|
+            # alpha_line %|-     something_else: "blah"|  # TODO
+            alpha_line %|-     something_else: "blah",|
             plain_line %|    }>|
             plain_line %|  }|
           },
@@ -982,7 +984,8 @@ RSpec.describe "Integration with RSpec's #match matcher", type: :integration do
             diff: proc {
               plain_line %|  [|
               plain_line %|    "b",|
-              alpha_line %|-   "a"|
+              # alpha_line %|-   "a"|  # TODO
+              alpha_line %|-   "a",|
               plain_line %|  ]|
             },
           )
@@ -1060,7 +1063,8 @@ RSpec.describe "Integration with RSpec's #match matcher", type: :integration do
               plain_line %|    "eggs",|
               plain_line %|    "cheese",|
               plain_line %|    "English muffins",|
-              alpha_line %|-   "bread"|
+              # alpha_line %|-   "bread"|  # TODO
+              alpha_line %|-   "bread",|
               plain_line %|  ]|
             },
           )
@@ -1149,7 +1153,8 @@ RSpec.describe "Integration with RSpec's #match matcher", type: :integration do
               plain_line %|      "milk",|
               plain_line %|      "toast",|
               plain_line %|      "eggs",|
-              alpha_line %|-     "bread"|
+              # alpha_line %|-     "bread"|  # TODO
+              alpha_line %|-     "bread",|
               plain_line %|    ]|
               plain_line %|  }|
             },

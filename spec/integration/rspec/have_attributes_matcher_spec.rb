@@ -109,8 +109,8 @@ RSpec.describe "Integration with RSpec's #have_attributes matcher", type: :integ
                 plain_line %|    name: "a",|
                 # plain_line %|    age: 9,|  # FIXME
                 plain_line %|    age: 9|
-                # alpha_line %|-   foo: "bar",|  # FIXME
-                alpha_line %|-   foo: "bar"|
+                # alpha_line %|-   foo: "bar"|  # TODO
+                alpha_line %|-   foo: "bar",|
                 plain_line %|  }>|
               },
             )
@@ -170,8 +170,7 @@ RSpec.describe "Integration with RSpec's #have_attributes matcher", type: :integ
                 alpha_line %|-   city: "Oakland",|
                 beta_line  %|+   city: "Hill Valley",|
                 plain_line %|    state: "CA",|
-                # alpha_line %|-   zip: "91234",|  # FIXME
-                alpha_line %|-   zip: "91234"|
+                alpha_line %|-   zip: "91234",|
                 beta_line  %|+   zip: "90382"|
                 plain_line %|  }>|
               },
@@ -283,9 +282,9 @@ RSpec.describe "Integration with RSpec's #have_attributes matcher", type: :integ
                 plain_line %|    state: "CA",|
                 # plain_line %|    zip: "90382",|  # FIXME
                 plain_line %|    zip: "90382"|
-                # alpha_line %|-   foo: "bar",|  # FIXME
-                alpha_line %|-   foo: "bar"|
-                alpha_line %|-   baz: "qux"|
+                alpha_line %|-   foo: "bar",|
+                # alpha_line %|-   baz: "qux"|  # TODO
+                alpha_line %|-   baz: "qux",|
                 plain_line %|  }>|
               },
             )

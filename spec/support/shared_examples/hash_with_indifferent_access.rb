@@ -284,13 +284,13 @@ shared_examples_for "integration with HashWithIndifferentAccess" do
                 diff: proc {
                   plain_line %|  #<HashWithIndifferentAccess {|
                   plain_line %|    "shipments" => [|
-                  plain_line %|      {|
-                  plain_line %|        "estimated_delivery" => {|
+                  plain_line %|      #<HashWithIndifferentAccess {|
+                  plain_line %|        "estimated_delivery" => #<HashWithIndifferentAccess {|
                   plain_line %|          "from" => "2019-05-06",|
                   alpha_line %|-         "to" => "2019-05-06"|
                   beta_line  %|+         "to" => "2019-05-09"|
-                  plain_line %|        }|
-                  plain_line %|      }|
+                  plain_line %|        }>|
+                  plain_line %|      }>|
                   plain_line %|    ]|
                   plain_line %|  }>|
                 },
@@ -351,13 +351,13 @@ shared_examples_for "integration with HashWithIndifferentAccess" do
                 diff: proc {
                   plain_line %|  #<HashWithIndifferentAccess {|
                   plain_line %|    "shipments" => [|
-                  plain_line %|      {|
-                  plain_line %|        "estimated_delivery" => {|
+                  plain_line %|      #<HashWithIndifferentAccess {|
+                  plain_line %|        "estimated_delivery" => #<HashWithIndifferentAccess {|
                   plain_line %|          "from" => "2019-05-06",|
                   alpha_line %|-         "to" => "2019-05-06"|
                   beta_line  %|+         "to" => "2019-05-09"|
-                  plain_line %|        }|
-                  plain_line %|      }|
+                  plain_line %|        }>|
+                  plain_line %|      }>|
                   plain_line %|    ]|
                   plain_line %|  }>|
                 },
@@ -658,13 +658,13 @@ shared_examples_for "integration with HashWithIndifferentAccess" do
                 diff: proc {
                   plain_line %|  #<HashWithIndifferentAccess {|
                   plain_line %|    "shipments" => [|
-                  plain_line %|      {|
-                  plain_line %|        "estimated_delivery" => {|
+                  plain_line %|      #<HashWithIndifferentAccess {|
+                  plain_line %|        "estimated_delivery" => #<HashWithIndifferentAccess {|
                   plain_line %|          "from" => "2019-05-06",|
                   alpha_line %|-         "to" => "2019-05-06"|
                   beta_line  %|+         "to" => "2019-05-09"|
-                  plain_line %|        }|
-                  plain_line %|      }|
+                  plain_line %|        }>|
+                  plain_line %|      }>|
                   plain_line %|    ]|
                   plain_line %|  }>|
                 },
@@ -725,13 +725,13 @@ shared_examples_for "integration with HashWithIndifferentAccess" do
                 diff: proc {
                   plain_line %|  #<HashWithIndifferentAccess {|
                   plain_line %|    "shipments" => [|
-                  plain_line %|      {|
-                  plain_line %|        "estimated_delivery" => {|
+                  plain_line %|      #<HashWithIndifferentAccess {|
+                  plain_line %|        "estimated_delivery" => #<HashWithIndifferentAccess {|
                   plain_line %|          "from" => "2019-05-06",|
                   alpha_line %|-         "to" => "2019-05-06"|
                   beta_line  %|+         "to" => "2019-05-09"|
-                  plain_line %|        }|
-                  plain_line %|      }|
+                  plain_line %|        }>|
+                  plain_line %|      }>|
                   plain_line %|    ]|
                   plain_line %|  }>|
                 },
