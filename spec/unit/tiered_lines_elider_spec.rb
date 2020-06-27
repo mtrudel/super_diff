@@ -82,7 +82,10 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
         ),
       ]
 
-      line_tree_with_elisions = with_configuration(diff_elision_threshold: 3) do
+      line_tree_with_elisions = with_configuration(
+        diff_elision_enabled: true,
+        diff_elision_threshold: 3
+      ) do
         described_class.call(lines)
       end
 
@@ -174,6 +177,408 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
   context "and there is a sequence of noops that spans more than some threshold of lines" do
     context "and padding around the non-noops is not used to determine that sequence" do
       context "and the tree is one-dimensional" do
+        context "and the line tree is just noops" do
+          it "doesn't elide anything" do
+            # Diff:
+            #
+            #   [
+            #     "one",
+            #     "two",
+            #     "three",
+            #     "four",
+            #     "five",
+            #     "six",
+            #     "seven",
+            #     "eight",
+            #     "nine",
+            #   ]
+
+            lines = [
+              line(
+                type: :noop,
+                indentation_level: 0,
+                value: %([),
+                collection_bookend: :open,
+                complete_bookend: :open,
+              ),
+              line(
+                type: :noop,
+                indentation_level: 1,
+                value: %("one"),
+                add_comma: true,
+              ),
+              line(
+                type: :noop,
+                indentation_level: 1,
+                value: %("two"),
+                add_comma: true,
+              ),
+              line(
+                type: :noop,
+                indentation_level: 1,
+                value: %("three"),
+                add_comma: true,
+              ),
+              line(
+                type: :noop,
+                indentation_level: 1,
+                value: %("four"),
+                add_comma: true,
+              ),
+              line(
+                type: :noop,
+                indentation_level: 1,
+                value: %("five"),
+                add_comma: true,
+              ),
+              line(
+                type: :noop,
+                indentation_level: 1,
+                value: %("six"),
+                add_comma: true,
+              ),
+              line(
+                type: :noop,
+                indentation_level: 1,
+                value: %("seven"),
+                add_comma: true,
+              ),
+              line(
+                type: :noop,
+                indentation_level: 1,
+                value: %("eight"),
+                add_comma: true,
+              ),
+              line(
+                type: :noop,
+                indentation_level: 1,
+                value: %("nine"),
+              ),
+              line(
+                type: :noop,
+                indentation_level: 0,
+                value: %(]),
+                collection_bookend: :close,
+                complete_bookend: :close,
+              ),
+            ]
+
+            line_tree_with_elisions = with_configuration(
+              diff_elision_enabled: true,
+              diff_elision_threshold: 3
+            ) do
+              described_class.call(lines)
+            end
+
+            expect(line_tree_with_elisions).to match([
+              an_object_having_attributes(
+                type: :noop,
+                indentation_level: 0,
+                value: %([),
+                add_comma: false,
+                children: [],
+                elided?: false,
+              ),
+              an_object_having_attributes(
+                type: :noop,
+                indentation_level: 1,
+                value: %("one"),
+                add_comma: true,
+                children: [],
+                elided?: false,
+              ),
+              an_object_having_attributes(
+                type: :noop,
+                indentation_level: 1,
+                value: %("two"),
+                add_comma: true,
+                children: [],
+                elided?: false,
+              ),
+              an_object_having_attributes(
+                type: :noop,
+                indentation_level: 1,
+                value: %("three"),
+                add_comma: true,
+                children: [],
+                elided?: false,
+              ),
+              an_object_having_attributes(
+                type: :noop,
+                indentation_level: 1,
+                value: %("four"),
+                add_comma: true,
+                children: [],
+                elided?: false,
+              ),
+              an_object_having_attributes(
+                type: :insert,
+                indentation_level: 1,
+                value: %("five"),
+                add_comma: true,
+                children: [],
+                elided?: false,
+              ),
+              an_object_having_attributes(
+                type: :noop,
+                indentation_level: 1,
+                value: %("six"),
+                add_comma: true,
+                children: [],
+                elided?: false,
+              ),
+              an_object_having_attributes(
+                type: :noop,
+                indentation_level: 1,
+                value: %("seven"),
+                add_comma: true,
+                children: [],
+                elided?: false,
+              ),
+              an_object_having_attributes(
+                type: :noop,
+                indentation_level: 1,
+                value: %("eight"),
+                add_comma: true,
+                children: [],
+                elided?: false,
+              ),
+              an_object_having_attributes(
+                type: :noop,
+                indentation_level: 1,
+                value: %("nine"),
+                add_comma: false,
+                children: [],
+                elided?: false,
+              ),
+              an_object_having_attributes(
+                type: :noop,
+                indentation_level: 0,
+                value: %(]),
+                add_comma: false,
+                children: [],
+                elided?: false,
+              ),
+            ])
+          end
+        end
+
+        context "and the line tree is more than just noops" do
+          it "represents the sequence as an elision" do
+            # Diff:
+            #
+            #   [
+            #     "one",
+            #     "two",
+            #     "three",
+            #     "four",
+            # -   "five",
+            # +   "FIVE",
+            #     "six",
+            #     "seven",
+            #     "eight",
+            #     "nine",
+            #   ]
+
+            lines = [
+              line(
+                type: :noop,
+                indentation_level: 0,
+                value: %([),
+                collection_bookend: :open,
+                complete_bookend: :open,
+              ),
+              line(
+                type: :noop,
+                indentation_level: 1,
+                value: %("one"),
+                add_comma: true,
+              ),
+              line(
+                type: :noop,
+                indentation_level: 1,
+                value: %("two"),
+                add_comma: true,
+              ),
+              line(
+                type: :noop,
+                indentation_level: 1,
+                value: %("three"),
+                add_comma: true,
+              ),
+              line(
+                type: :noop,
+                indentation_level: 1,
+                value: %("four"),
+                add_comma: true,
+              ),
+              line(
+                type: :delete,
+                indentation_level: 1,
+                value: %("five"),
+                add_comma: true,
+              ),
+              line(
+                type: :insert,
+                indentation_level: 1,
+                value: %("FIVE"),
+                add_comma: true,
+              ),
+              line(
+                type: :noop,
+                indentation_level: 1,
+                value: %("six"),
+                add_comma: true,
+              ),
+              line(
+                type: :noop,
+                indentation_level: 1,
+                value: %("seven"),
+                add_comma: true,
+              ),
+              line(
+                type: :noop,
+                indentation_level: 1,
+                value: %("eight"),
+                add_comma: true,
+              ),
+              line(
+                type: :noop,
+                indentation_level: 1,
+                value: %("nine"),
+              ),
+              line(
+                type: :noop,
+                indentation_level: 0,
+                value: %(]),
+                collection_bookend: :close,
+                complete_bookend: :close,
+              ),
+            ]
+
+            line_tree_with_elisions = with_configuration(
+              diff_elision_enabled: true,
+              diff_elision_threshold: 3
+            ) do
+              described_class.call(lines)
+            end
+
+            expect(line_tree_with_elisions).to match([
+              an_object_having_attributes(
+                type: :noop,
+                indentation_level: 0,
+                value: %([),
+                add_comma: false,
+                children: [],
+                elided?: false,
+              ),
+              an_object_having_attributes(
+                type: :elision,
+                indentation_level: 1,
+                children: [
+                  an_object_having_attributes(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("one"),
+                    add_comma: true,
+                    children: [],
+                    elided?: true,
+                  ),
+                  an_object_having_attributes(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("two"),
+                    add_comma: true,
+                    children: [],
+                    elided?: true,
+                  ),
+                  an_object_having_attributes(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("three"),
+                    add_comma: true,
+                    children: [],
+                    elided?: true,
+                  ),
+                  an_object_having_attributes(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("four"),
+                    add_comma: true,
+                    children: [],
+                    elided?: true,
+                  ),
+                ],
+                elided?: true,
+              ),
+              an_object_having_attributes(
+                type: :delete,
+                indentation_level: 1,
+                value: %("five"),
+                add_comma: true,
+                children: [],
+                elided?: false,
+              ),
+              an_object_having_attributes(
+                type: :insert,
+                indentation_level: 1,
+                value: %("FIVE"),
+                add_comma: true,
+                children: [],
+                elided?: false,
+              ),
+              an_object_having_attributes(
+                indentation_level: 1,
+                children: [
+                  an_object_having_attributes(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("six"),
+                    add_comma: true,
+                    children: [],
+                    elided?: true,
+                  ),
+                  an_object_having_attributes(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("seven"),
+                    add_comma: true,
+                    children: [],
+                    elided?: true,
+                  ),
+                  an_object_having_attributes(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("eight"),
+                    add_comma: true,
+                    children: [],
+                    elided?: true,
+                  ),
+                  an_object_having_attributes(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("nine"),
+                    add_comma: false,
+                    children: [],
+                    elided?: true,
+                  ),
+                ],
+                elided?: true,
+              ),
+              an_object_having_attributes(
+                type: :noop,
+                indentation_level: 0,
+                value: %(]),
+                add_comma: false,
+                children: [],
+                elided?: false,
+              ),
+            ])
+          end
+        end
+      end
+
+      context "and the tree is multi-dimensional" do
         context "and the line tree is just noops" do
           it "doesn't elide anything" do
             # Diff:
@@ -295,10 +700,12 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
               ),
             ]
 
-            line_tree_with_elisions =
-              with_configuration(diff_elision_threshold: 5) do
-                described_class.call(lines)
-              end
+            line_tree_with_elisions = with_configuration(
+              diff_elision_enabled: true,
+              diff_elision_threshold: 5
+            ) do
+              described_class.call(lines)
+            end
 
             expect(line_tree_with_elisions).to match([
               an_object_having_attributes(
@@ -433,220 +840,6 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
           end
         end
 
-        context "and the line tree is more than just noops" do
-          it "represents the sequence as an elision" do
-            # Diff:
-            #
-            #   [
-            #     "one",
-            #     "two",
-            #     "three",
-            #     "four",
-            # -   "five",
-            # +   "FIVE",
-            #     "six",
-            #     "seven",
-            #     "eight",
-            #     "nine",
-            #   ]
-
-            lines = [
-              line(
-                type: :noop,
-                indentation_level: 0,
-                value: %([),
-                collection_bookend: :open,
-                complete_bookend: :open,
-              ),
-              line(
-                type: :noop,
-                indentation_level: 1,
-                value: %("one"),
-                add_comma: true,
-              ),
-              line(
-                type: :noop,
-                indentation_level: 1,
-                value: %("two"),
-                add_comma: true,
-              ),
-              line(
-                type: :noop,
-                indentation_level: 1,
-                value: %("three"),
-                add_comma: true,
-              ),
-              line(
-                type: :noop,
-                indentation_level: 1,
-                value: %("four"),
-                add_comma: true,
-              ),
-              line(
-                type: :delete,
-                indentation_level: 1,
-                value: %("five"),
-                add_comma: true,
-              ),
-              line(
-                type: :insert,
-                indentation_level: 1,
-                value: %("FIVE"),
-                add_comma: true,
-              ),
-              line(
-                type: :noop,
-                indentation_level: 1,
-                value: %("six"),
-                add_comma: true,
-              ),
-              line(
-                type: :noop,
-                indentation_level: 1,
-                value: %("seven"),
-                add_comma: true,
-              ),
-              line(
-                type: :noop,
-                indentation_level: 1,
-                value: %("eight"),
-                add_comma: true,
-              ),
-              line(
-                type: :noop,
-                indentation_level: 1,
-                value: %("nine"),
-              ),
-              line(
-                type: :noop,
-                indentation_level: 0,
-                value: %(]),
-                collection_bookend: :close,
-                complete_bookend: :close,
-              ),
-            ]
-
-            line_tree_with_elisions =
-              with_configuration(diff_elision_threshold: 3) do
-                described_class.call(lines)
-              end
-
-            expect(line_tree_with_elisions).to match([
-              an_object_having_attributes(
-                type: :noop,
-                indentation_level: 0,
-                value: %([),
-                add_comma: false,
-                children: [],
-                elided?: false,
-              ),
-              an_object_having_attributes(
-                type: :elision,
-                indentation_level: 1,
-                children: [
-                  an_object_having_attributes(
-                    type: :noop,
-                    indentation_level: 1,
-                    value: %("one"),
-                    add_comma: true,
-                    children: [],
-                    elided?: true,
-                  ),
-                  an_object_having_attributes(
-                    type: :noop,
-                    indentation_level: 1,
-                    value: %("two"),
-                    add_comma: true,
-                    children: [],
-                    elided?: true,
-                  ),
-                  an_object_having_attributes(
-                    type: :noop,
-                    indentation_level: 1,
-                    value: %("three"),
-                    add_comma: true,
-                    children: [],
-                    elided?: true,
-                  ),
-                  an_object_having_attributes(
-                    type: :noop,
-                    indentation_level: 1,
-                    value: %("four"),
-                    add_comma: true,
-                    children: [],
-                    elided?: true,
-                  ),
-                ],
-                elided?: true,
-              ),
-              an_object_having_attributes(
-                type: :delete,
-                indentation_level: 1,
-                value: %("five"),
-                add_comma: true,
-                children: [],
-                elided?: false,
-              ),
-              an_object_having_attributes(
-                type: :insert,
-                indentation_level: 1,
-                value: %("FIVE"),
-                add_comma: true,
-                children: [],
-                elided?: false,
-              ),
-              an_object_having_attributes(
-                indentation_level: 1,
-                children: [
-                  an_object_having_attributes(
-                    type: :noop,
-                    indentation_level: 1,
-                    value: %("six"),
-                    add_comma: true,
-                    children: [],
-                    elided?: true,
-                  ),
-                  an_object_having_attributes(
-                    type: :noop,
-                    indentation_level: 1,
-                    value: %("seven"),
-                    add_comma: true,
-                    children: [],
-                    elided?: true,
-                  ),
-                  an_object_having_attributes(
-                    type: :noop,
-                    indentation_level: 1,
-                    value: %("eight"),
-                    add_comma: true,
-                    children: [],
-                    elided?: true,
-                  ),
-                  an_object_having_attributes(
-                    type: :noop,
-                    indentation_level: 1,
-                    value: %("nine"),
-                    add_comma: false,
-                    children: [],
-                    elided?: true,
-                  ),
-                ],
-                elided?: true,
-              ),
-              an_object_having_attributes(
-                type: :noop,
-                indentation_level: 0,
-                value: %(]),
-                add_comma: false,
-                children: [],
-                elided?: false,
-              ),
-            ])
-          end
-        end
-      end
-
-      context "and the tree is multi-dimensional" do
         context "and the sequence of noops does not cross indentation level boundaries" do
           it "represents the smallest portion within the sequence as an elision (descending into sub-structures if necessary) to fit the whole sequence under the threshold" do
             # Diff:
@@ -768,10 +961,12 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
               ),
             ]
 
-            line_tree_with_elisions =
-              with_configuration(diff_elision_threshold: 5) do
-                described_class.call(lines)
-              end
+            line_tree_with_elisions = with_configuration(
+              diff_elision_enabled: true,
+              diff_elision_threshold: 5
+            ) do
+              described_class.call(lines)
+            end
 
             expect(line_tree_with_elisions).to match([
               an_object_having_attributes(
@@ -1083,10 +1278,12 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                 ),
               ]
 
-              line_tree_with_elisions =
-                with_configuration(diff_elision_threshold: 5) do
-                  described_class.call(lines)
-                end
+              line_tree_with_elisions = with_configuration(
+                diff_elision_enabled: true,
+                diff_elision_threshold: 5
+              ) do
+                described_class.call(lines)
+              end
 
               expect(line_tree_with_elisions).to match([
                 an_object_having_attributes(
@@ -1419,10 +1616,12 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                 ),
               ]
 
-              line_tree_with_elisions =
-                with_configuration(diff_elision_threshold: 5) do
-                  described_class.call(lines)
-                end
+              line_tree_with_elisions = with_configuration(
+                diff_elision_enabled: true,
+                diff_elision_threshold: 5
+              ) do
+                described_class.call(lines)
+              end
 
               # After eliding:
               #
@@ -1687,6 +1886,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
             ]
 
             line_tree_with_elisions = with_configuration(
+              diff_elision_enabled: true,
               diff_elision_threshold: 5,
               diff_elision_padding: 1,
             ) do
@@ -1920,6 +2120,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
             ]
 
             line_tree_with_elisions = with_configuration(
+              diff_elision_enabled: true,
               diff_elision_threshold: 2,
               diff_elision_padding: 1,
             ) do
@@ -2164,6 +2365,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
             ]
 
             line_tree_with_elisions = with_configuration(
+              diff_elision_enabled: true,
               diff_elision_threshold: 5,
               diff_elision_padding: 1
             ) do
@@ -2480,6 +2682,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
             ]
 
             line_tree_with_elisions = with_configuration(
+              diff_elision_enabled: true,
               diff_elision_threshold: 5,
               diff_elision_padding: 1
             ) do

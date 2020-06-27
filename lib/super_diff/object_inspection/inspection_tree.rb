@@ -61,9 +61,13 @@ module SuperDiff
 
       def insert_array_inspection_of(array)
         insert_separated_list(array) do |value|
-          # Passing a splatted array here so that if value is a hash, we force
-          # Ruby to NOT treat it like keyword args
-          add_inspection_of(*[value, {}])
+          # Have to do these shenanigans so that if value is a hash, Ruby
+          # doesn't try to interpret it as keyword args
+          if SuperDiff::Helpers.ruby_version_matches?(">= 2.7.1")
+            add_inspection_of(value, **{})
+          else
+            add_inspection_of(*[value, {}])
+          end
         end
       end
 
@@ -86,9 +90,13 @@ module SuperDiff
             end
           end
 
-          # Passing a splatted array here so that if hash[key] is a hash, we
-          # force Ruby to NOT treat it like keyword args
-          add_inspection_of(*[hash[key], {}])
+          # Have to do these shenanigans so that if hash[key] is a hash, Ruby
+          # doesn't try to interpret it as keyword args
+          if SuperDiff::Helpers.ruby_version_matches?(">= 2.7.1")
+            add_inspection_of([hash[key], **{}])
+          else
+            add_inspection_of(*[hash[key], {}])
+          end
         end
       end
 

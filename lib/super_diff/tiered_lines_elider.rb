@@ -56,7 +56,7 @@ module SuperDiff
     end
 
     def padded_changed_sections
-      @_sections_by_changedness ||= combine_congruent_sections(
+      @_padded_changed_sections ||= combine_congruent_sections(
         lines.
         each_with_index.
         select { |line, index| line.type != :noop }.
