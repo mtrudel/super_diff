@@ -22,16 +22,28 @@ begin
     adapter: "sqlite3",
     database: ":memory:",
   )
-  $active_record_available = true
+  active_record_available = true
 rescue LoadError
-  $active_record_available = false
+  active_record_available = false
+end
+
+if active_record_available
+  require "super_diff/rspec-rails"
+else
+  require "super_diff/rspec"
+end
+
+SuperDiff.configure do |config|
+  config.diff_elision_enabled = true
+  config.diff_elision_threshold = 5
+  config.diff_elision_padding = 5
 end
 
 Dir.
   glob(File.expand_path("support/**/*.rb", __dir__)).
   sort.
   select do |file|
-    $active_record_available || !file.include?("models/active_record")
+    active_record_available || !file.include?("models/active_record")
   end.
   each { |file| require file }
 

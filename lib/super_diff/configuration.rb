@@ -5,6 +5,9 @@ module SuperDiff
       :extra_operation_tree_builder_classes,
       :extra_operation_tree_classes,
       :extra_inspection_tree_builder_classes,
+    )
+    attr_accessor(
+      :diff_elision_enabled,
       :diff_elision_threshold,
       :diff_elision_padding,
     )
