@@ -93,7 +93,7 @@ module SuperDiff
           # Have to do these shenanigans so that if hash[key] is a hash, Ruby
           # doesn't try to interpret it as keyword args
           if SuperDiff::Helpers.ruby_version_matches?(">= 2.7.1")
-            add_inspection_of([hash[key], **{}])
+            add_inspection_of(hash[key], **{})
           else
             add_inspection_of(*[hash[key], {}])
           end

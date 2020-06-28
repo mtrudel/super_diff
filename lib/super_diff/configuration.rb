@@ -8,7 +8,7 @@ module SuperDiff
     )
     attr_accessor(
       :diff_elision_enabled,
-      :diff_elision_threshold,
+      :diff_elision_maximum,
       :diff_elision_padding,
     )
 
@@ -19,7 +19,7 @@ module SuperDiff
       @extra_inspection_tree_builder_classes = [].freeze
       @color_enabled = color_enabled_by_default?
       @diff_elision_enabled = false
-      @diff_elision_threshold = nil
+      @diff_elision_maximum = nil
       @diff_elision_padding = nil
 
       merge!(options)
@@ -60,8 +60,8 @@ module SuperDiff
           @color_enabled = value
         when :diff_elision_enabled
           @diff_elision_enabled = value
-        when :diff_elision_threshold
-          @diff_elision_threshold = value
+        when :diff_elision_maximum
+          @diff_elision_maximum = value
         when :diff_elision_padding
           @diff_elision_padding = value
         end
@@ -122,7 +122,7 @@ module SuperDiff
         extra_inspection_tree_builder_classes: extra_inspection_tree_builder_classes.dup,
         color_enabled: color_enabled?,
         diff_elision_enabled: diff_elision_enabled?,
-        diff_elision_threshold: diff_elision_threshold,
+        diff_elision_maximum: diff_elision_maximum,
         diff_elision_padding: diff_elision_padding,
       }
     end

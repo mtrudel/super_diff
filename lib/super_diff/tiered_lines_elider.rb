@@ -16,163 +16,163 @@ module SuperDiff
     private
 
     def all_lines_are_changed_or_unchanged?
-      sections_by_changedness.size == 1 &&
-        sections_by_changedness.first.range == Range.new(0, lines.length - 1)
+      sheets.size == 1 &&
+        sheets.first.range == Range.new(0, lines.length - 1)
     end
 
     def elided_lines
-      spans_to_elide.
+      boxes_to_elide.
         reverse.
-        reduce(lines) do |lines_with_elisions, span|
-          selected_lines = lines_with_elisions[span.range]
+        reduce(lines) do |lines_with_elisions, box|
+          selected_lines = lines_with_elisions[box.range]
           with_slice_of_array_replaced(
             lines_with_elisions,
-            span.range,
+            box.range,
             Elision.new(
-              indentation_level: span.indentation_level,
+              indentation_level: box.indentation_level,
               children: selected_lines.map(&:as_elided),
             ),
           )
         end
     end
 
-    def spans_to_elide
-      sections_to_consider_for_eliding.reduce([]) do |array, section|
-        array + (find_spans_to_elide_within(section) || [])
+    def boxes_to_elide
+      sheets_to_consider_for_eliding.reduce([]) do |array, sheet|
+        array + (find_boxes_to_elide_within(sheet) || [])
       end
     end
 
-    def sections_to_consider_for_eliding
-      sections_by_changedness.select do |section|
-        section.type == :unchanged && section.range.size > threshold
+    def sheets_to_consider_for_eliding
+      sheets.select do |sheet|
+        sheet.type == :clean && sheet.range.size > maximum
       end
     end
 
-    def sections_by_changedness
-      @_sections_by_changeness ||= ChangenessSectionsBuilder.call(
-        changed_sections: padded_changed_sections,
+    def sheets
+      @_sheets ||= BuildSheets.call(
+        dirty_sheets: padded_dirty_sheets,
         lines: lines,
       )
     end
 
-    def padded_changed_sections
-      @_padded_changed_sections ||= combine_congruent_sections(
-        lines.
+    def padded_dirty_sheets
+      @_padded_dirty_sheets ||= combine_congruent_sheets(
+        dirty_sheets.
+        map(&:padded).
+        map { |sheet| sheet.capped_to(0, lines.size - 1) }
+      )
+    end
+
+    def dirty_sheets
+      @_dirty_sheets ||= lines.
         each_with_index.
         select { |line, index| line.type != :noop }.
-        reduce([]) do |sections, (_, index)|
-          if !sections.empty? && sections.last.range.end == index - 1
-            sections[0..-2] + [sections[-1].extended_to(index)]
+        reduce([]) do |sheets, (_, index)|
+          if !sheets.empty? && sheets.last.range.end == index - 1
+            sheets[0..-2] + [sheets[-1].extended_to(index)]
           else
-            sections + [
-              ChangednessSection.new(
-                type: :changed,
+            sheets + [
+              Sheet.new(
+                type: :dirty,
                 range: index..index,
               ),
             ]
           end
-        end.
-        map(&:padded).
-        map { |section| section.capped_to(0, lines.size - 1) }
-      )
+        end
     end
 
-    def find_spans_to_elide_within(section)
-      normalized_span_groups_at_decreasing_indentation_levels_within(section).
-        find do |spans|
-          size_before_eliding = lines[section.range].
+    def find_boxes_to_elide_within(sheet)
+      # binding.pry
+      normalized_box_groups_at_decreasing_indentation_levels_within(sheet).
+        find do |boxes|
+          size_before_eliding = lines[sheet.range].
             reject(&:complete_bookend?).
             size
 
           size_after_eliding =
             size_before_eliding -
-            spans.sum { |span| span.range.size - 1 }
+            boxes.sum { |box| box.range.size - 1 }
 
-          size_before_eliding > threshold && size_after_eliding <= threshold
+          # binding.pry
+
+          size_before_eliding > maximum && size_after_eliding <= maximum
         end
     end
 
-    def normalized_span_groups_at_decreasing_indentation_levels_within(section)
-      span_groups_at_decreasing_indentation_levels_within(section).
-        map(&method(:filter_out_spans_fully_contained_in_others)).
-        map(&method(:combine_adjacent_spans))
+    def normalized_box_groups_at_decreasing_indentation_levels_within(sheet)
+      box_groups_at_decreasing_indentation_levels_within(sheet).
+        map(&method(:filter_out_boxes_fully_contained_in_others)).
+        map(&method(:combine_congruent_boxes))
     end
 
-    def span_groups_at_decreasing_indentation_levels_within(section)
-      spans_within_section = spans.select do |span|
-        span.fully_contained_within?(section)
+    def box_groups_at_decreasing_indentation_levels_within(sheet)
+      boxes_within_sheet = boxes.select do |box|
+        box.fully_contained_within?(sheet)
       end
 
-      indentation_level_thresholds = spans_within_section.
+      indentation_level_maximums = boxes_within_sheet.
         map(&:indentation_level).
         select { |indentation_level| indentation_level > 0 }.
         uniq.
         sort.
         reverse
 
-      indentation_level_thresholds.map do |indentation_level_threshold|
-        spans_within_section.select do |span|
-          span.indentation_level >= indentation_level_threshold
+      indentation_level_maximums.map do |indentation_level_maximum|
+        boxes_within_sheet.select do |box|
+          box.indentation_level >= indentation_level_maximum
         end
       end
     end
 
-    def filter_out_spans_fully_contained_in_others(spans)
-      sorted_spans = spans.sort_by do |span|
-        [span.indentation_level, span.range.begin, span.range.end]
+    def filter_out_boxes_fully_contained_in_others(boxes)
+      sorted_boxes = boxes.sort_by do |box|
+        [box.indentation_level, box.range.begin, box.range.end]
       end
 
-      spans.reject do |span2|
-        sorted_spans.any? do |span1|
-          !span1.equal?(span2) && span1.fully_contains?(span2)
+      boxes.reject do |box2|
+        sorted_boxes.any? do |box1|
+          !box1.equal?(box2) && box1.fully_contains?(box2)
         end
       end
     end
 
-    def combine_adjacent_spans(spans)
-      spans.reduce([]) do |combined_spans, span|
+    def combine_congruent_boxes(boxes)
+      combine(boxes, on: :indentation_level)
+    end
+
+    def combine_congruent_sheets(sheets)
+      combine(sheets, on: :type)
+    end
+
+    def combine(spannables, on:)
+      criterion = on
+      spannables.reduce([]) do |combined_spannables, spannable|
         if (
-          !combined_spans.empty? &&
-          span.range.begin == combined_spans.last.range.end + 1 &&
-          span.indentation_level >= combined_spans.last.indentation_level
+          !combined_spannables.empty? &&
+          spannable.range.begin <= combined_spannables.last.range.end + 1 &&
+          spannable.public_send(criterion) == combined_spannables.last.public_send(criterion)
         )
-          combined_spans[0..-2] + [
-            combined_spans[-1].extended_to(span.range.end),
+          combined_spannables[0..-2] + [
+            combined_spannables[-1].extended_to(spannable.range.end),
           ]
         else
-          combined_spans + [span]
+          combined_spannables + [spannable]
         end
       end
     end
 
-    def combine_congruent_sections(sections)
-      sections.reduce([]) do |combined_sections, section|
-        if (
-          !combined_sections.empty? &&
-          section.range.begin <= combined_sections.last.range.end + 1 &&
-          section.type == combined_sections.last.type
-        )
-          combined_sections[0..-2] + [
-            combined_sections[-1].extended_to(section.range.end),
-          ]
-        else
-          combined_sections + [section]
-        end
-      end
+    def boxes
+      @_boxes ||= BuildBoxes.call(lines)
     end
 
-    def spans
-      @_spans ||= SpanBuilder.call(lines)
+    def maximum
+      SuperDiff.configuration.diff_elision_maximum
     end
 
-    def threshold
-      SuperDiff.configuration.diff_elision_threshold
-    end
-
-    class ChangenessSectionsBuilder
+    class BuildSheets
       extend AttrExtras.mixin
 
-      method_object [:changed_sections!, :lines!]
+      method_object [:dirty_sheets!, :lines!]
 
       def call
         beginning + middle + ending
@@ -182,17 +182,17 @@ module SuperDiff
 
       def beginning
         if (
-          changed_sections.empty? ||
-          changed_sections.first.range.begin == 0
+          dirty_sheets.empty? ||
+          dirty_sheets.first.range.begin == 0
         )
           []
         else
           [
-            ChangednessSection.new(
-              type: :unchanged,
+            Sheet.new(
+              type: :clean,
               range: Range.new(
                 0,
-                changed_sections.first.range.begin - 1
+                dirty_sheets.first.range.begin - 1
               )
             )
           ]
@@ -200,26 +200,26 @@ module SuperDiff
       end
 
       def middle
-        if changed_sections.size == 1
-          changed_sections
+        if dirty_sheets.size == 1
+          dirty_sheets
         else
-          changed_sections.
+          dirty_sheets.
             each_with_index.
             each_cons(2).
-            reduce([]) do |sections, ((section1, _), (section2, index2))|
-              sections +
+            reduce([]) do |sheets, ((sheet1, _), (sheet2, index2))|
+              sheets +
               [
-                section1,
-                ChangednessSection.new(
-                  type: :unchanged,
+                sheet1,
+                Sheet.new(
+                  type: :clean,
                   range: Range.new(
-                    section1.range.end + 1,
-                    section2.range.begin - 1,
+                    sheet1.range.end + 1,
+                    sheet2.range.begin - 1,
                   )
                 )
               ] + (
-                index2 == changed_sections.size - 1 ?
-                [section2] :
+                index2 == dirty_sheets.size - 1 ?
+                [sheet2] :
                 []
               )
             end
@@ -228,16 +228,16 @@ module SuperDiff
 
       def ending
         if (
-          changed_sections.empty? ||
-          changed_sections.last.range.end >= lines.size - 1
+          dirty_sheets.empty? ||
+          dirty_sheets.last.range.end >= lines.size - 1
         )
           []
         else
           [
-            ChangednessSection.new(
-              type: :unchanged,
+            Sheet.new(
+              type: :clean,
               range: Range.new(
-                changed_sections.last.range.end + 1,
+                dirty_sheets.last.range.end + 1,
                 lines.size - 1
               )
             )
@@ -246,7 +246,7 @@ module SuperDiff
       end
     end
 
-    class ChangednessSection
+    class Sheet
       extend AttrExtras.mixin
 
       rattr_initialize [:type!, :range!]
@@ -278,64 +278,64 @@ module SuperDiff
       end
     end
 
-    class SpanBuilder
+    class BuildBoxes
       def self.call(lines)
         builder = new(lines)
         builder.build
-        builder.final_spans
+        builder.final_boxes
       end
 
-      attr_reader :final_spans
+      attr_reader :final_boxes
 
       def initialize(lines)
         @lines = lines
 
-        @open_collection_spans = []
-        @final_spans = []
+        @open_collection_boxes = []
+        @final_boxes = []
       end
 
       def build
         lines.each_with_index do |line, index|
           if line.opens_collection?
-            open_new_collection_span(line, index)
+            open_new_collection_box(line, index)
           elsif line.closes_collection?
-            extend_working_collection_span(index)
-            close_working_collection_span
+            extend_working_collection_box(index)
+            close_working_collection_box
           else
-            extend_working_collection_span(index) if open_collection_spans.any?
-            record_item_span(line, index)
+            extend_working_collection_box(index) if open_collection_boxes.any?
+            record_item_box(line, index)
           end
         end
       end
 
       private
 
-      attr_reader :lines, :open_collection_spans
+      attr_reader :lines, :open_collection_boxes
 
-      def extend_working_collection_span(index)
-        open_collection_spans.last.extend_to(index)
+      def extend_working_collection_box(index)
+        open_collection_boxes.last.extend_to(index)
       end
 
-      def close_working_collection_span
-        final_spans << open_collection_spans.pop
+      def close_working_collection_box
+        final_boxes << open_collection_boxes.pop
       end
 
-      def open_new_collection_span(line, index)
-        open_collection_spans << Span.new(
+      def open_new_collection_box(line, index)
+        open_collection_boxes << Box.new(
           indentation_level: line.indentation_level,
           range: index..index,
         )
       end
 
-      def record_item_span(line, index)
-        final_spans << Span.new(
+      def record_item_box(line, index)
+        final_boxes << Box.new(
           indentation_level: line.indentation_level,
           range: index..index,
         )
       end
     end
 
-    class Span
+    class Box
       extend AttrExtras.mixin
 
       rattr_initialize [:indentation_level!, :range!]

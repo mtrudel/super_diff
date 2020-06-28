@@ -33,11 +33,13 @@ else
   require "super_diff/rspec"
 end
 
+=begin
 SuperDiff.configure do |config|
   config.diff_elision_enabled = true
-  config.diff_elision_threshold = 5
+  config.diff_elision_maximum = 5
   config.diff_elision_padding = 5
 end
+=end
 
 Dir.
   glob(File.expand_path("support/**/*.rb", __dir__)).
