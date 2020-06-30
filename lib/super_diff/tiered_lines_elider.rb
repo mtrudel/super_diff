@@ -16,46 +16,13 @@ module SuperDiff
     private
 
     def all_lines_are_changed_or_unchanged?
-      panes.size == 1 &&
-        panes.first.range == Range.new(0, lines.length - 1)
+      panes.size == 1 && panes.first.range == Range.new(0, lines.length - 1)
     end
 
     def elided_lines
-      boxes_to_elide.
-        reverse_each.
-        reduce(lines) do |lines_with_elisions, box|
-          box_at_start_of_lines =
-            if lines.first.complete_bookend?
-              box.range.begin == 1
-            else
-              box.range.begin == 0
-            end
-
-          box_at_end_of_lines =
-            if lines.last.complete_bookend?
-              box.range.end == lines.size - 2
-            else
-              box.range.begin == lines.size - 1
-            end
-
-          if outermost_box?(box)
-            if boxes_to_elide.size == 1
-              with_middle_of_box_elided(box, lines_with_elisions)
-            elsif box_at_start_of_lines
-              with_start_of_box_elided(box, lines_with_elisions)
-            elsif box_at_end_of_lines
-              with_end_of_box_elided(box, lines_with_elisions)
-            else
-              raise "can't elide this"
-            end
-          else
-            with_subset_of_lines_elided(
-              lines_with_elisions,
-              range: box.range,
-              indentation_level: box.indentation_level,
-            )
-          end
-        end
+      boxes_to_elide.reverse.reduce(lines) do |lines_with_elisions, box|
+        with_box_elided(box, lines_with_elisions)
+      end
     end
 
     def boxes_to_elide
@@ -72,10 +39,7 @@ module SuperDiff
     end
 
     def panes
-      @_panes ||= BuildPanes.call(
-        dirty_panes: padded_dirty_panes,
-        lines: lines,
-      )
+      @_panes ||= BuildPanes.call(dirty_panes: padded_dirty_panes, lines: lines)
     end
 
     def padded_dirty_panes
@@ -99,6 +63,40 @@ module SuperDiff
         end
     end
 
+    def with_box_elided(box, lines)
+      box_at_start_of_lines =
+        if lines.first.complete_bookend?
+          box.range.begin == 1
+        else
+          box.range.begin == 0
+        end
+
+      box_at_end_of_lines =
+        if lines.last.complete_bookend?
+          box.range.end == lines.size - 2
+        else
+          box.range.begin == lines.size - 1
+        end
+
+      if outermost_box?(box)
+        if boxes_to_elide.size == 1
+          with_middle_of_box_elided(box, lines)
+        elsif box_at_start_of_lines
+          with_start_of_box_elided(box, lines)
+        elsif box_at_end_of_lines
+          with_end_of_box_elided(box, lines)
+        else
+          raise "can't elide this"
+        end
+      else
+        with_subset_of_lines_elided(
+          lines,
+          range: box.range,
+          indentation_level: box.indentation_level,
+        )
+      end
+    end
+
     def outermost_box?(box)
       box.indentation_level == min_indentation_level
     end
@@ -116,14 +114,20 @@ module SuperDiff
         reject(&:complete_bookend?).
         size
 
-      normalized_box_groups_at_decreasing_indentation_levels_within(pane).
-        find do |boxes|
-          size_after_eliding =
-            size_before_eliding -
-            boxes.sum { |box| box.range.size - 1 }
+      if size_before_eliding > maximum
+        normalized_box_groups_at_decreasing_indentation_levels_within(pane).
+          first
+      else
+        []
+      end
 
-          size_before_eliding > maximum
-        end
+        # find do |boxes|
+          # size_after_eliding =
+            # size_before_eliding -
+            # boxes.sum { |box| box.range.size - 1 }
+
+          # size_before_eliding > maximum
+        # end
     end
 
     def normalized_box_groups_at_decreasing_indentation_levels_within(pane)
@@ -177,7 +181,8 @@ module SuperDiff
         if (
           !combined_spannables.empty? &&
           spannable.range.begin <= combined_spannables.last.range.end + 1 &&
-          spannable.public_send(criterion) == combined_spannables.last.public_send(criterion)
+          spannable.public_send(criterion) ==
+            combined_spannables.last.public_send(criterion)
         )
           combined_spannables[0..-2] + [
             combined_spannables[-1].extended_to(spannable.range.end),
@@ -193,16 +198,21 @@ module SuperDiff
     end
 
     def with_start_of_box_elided(box, lines)
-      amount_to_elide = box.range.size - maximum
+      # an elision takes up 1 line
+      amount_to_elide = box.range.size - maximum + 1
       with_subset_of_lines_elided(
         lines,
-        range: Range.new(box.range.begin, box.range.begin + amount_to_elide - 1),
+        range: Range.new(
+          box.range.begin,
+          box.range.begin + amount_to_elide - 1,
+        ),
         indentation_level: box.indentation_level
       )
     end
 
     def with_end_of_box_elided(box, lines)
-      amount_to_elide = box.range.size - maximum
+      # an elision takes up 1 line
+      amount_to_elide = box.range.size - maximum + 1
       with_subset_of_lines_elided(
         lines,
         range: Range.new(box.range.end - amount_to_elide + 1, box.range.end),
