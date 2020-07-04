@@ -315,9 +315,604 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
         end
 
         context "and the line tree contains non-noops in addition to noops" do
+          context "and the only noops that exist are above the only non-noops that exist" do
+            context "and :padding is 0" do
+              it "elides the beginning of the noop so as to put it at the maximum" do
+                # Diff:
+                #
+                #   [
+                #     "one",
+                #     "two",
+                #     "three",
+                #     "four",
+                # -   "five",
+                # +   "FIVE",
+                #   ]
+
+                lines = [
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 0,
+                    value: %([),
+                    collection_bookend: :open,
+                    complete_bookend: :open,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("one"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("two"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("three"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("four"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :delete,
+                    indentation_level: 1,
+                    value: %("five"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :insert,
+                    indentation_level: 1,
+                    value: %("FIVE"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 0,
+                    value: %(]),
+                    collection_bookend: :close,
+                    complete_bookend: :close,
+                  ),
+                ]
+
+                line_tree_with_elisions = with_configuration(
+                  diff_elision_enabled: true,
+                  diff_elision_maximum: 3
+                ) do
+                  described_class.call(lines)
+                end
+
+                # Result:
+                #
+                #   [
+                #     # ...
+                #     "three",
+                #     "four",
+                # -   "five",
+                # +   "FIVE",
+                #   ]
+
+                expect(line_tree_with_elisions).to match([
+                  an_expected_line(
+                    type: :noop,
+                    indentation_level: 0,
+                    value: %([),
+                  ),
+                  an_expected_elision(
+                    indentation_level: 1,
+                    children: [
+                      an_expected_line(
+                        type: :noop,
+                        indentation_level: 1,
+                        value: %("one"),
+                        add_comma?: true,
+                        elided?: true,
+                      ),
+                      an_expected_line(
+                        type: :noop,
+                        indentation_level: 1,
+                        value: %("two"),
+                        add_comma?: true,
+                        elided?: true,
+                      ),
+                    ],
+                  ),
+                  an_expected_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("three"),
+                    add_comma?: true,
+                  ),
+                  an_expected_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("four"),
+                    add_comma?: true,
+                  ),
+                  an_expected_line(
+                    type: :delete,
+                    indentation_level: 1,
+                    value: %("five"),
+                    add_comma?: true,
+                  ),
+                  an_expected_line(
+                    type: :insert,
+                    indentation_level: 1,
+                    value: %("FIVE"),
+                    add_comma?: true,
+                  ),
+                  an_expected_line(
+                    type: :noop,
+                    indentation_level: 0,
+                    value: %(]),
+                  ),
+                ])
+              end
+            end
+
+            context "and :padding is more than 0" do
+              it "prevents a section around the non-noops from being elided" do
+                # Diff:
+                #
+                #   [
+                #     "one",
+                #     "two",
+                #     "three",
+                #     "four",
+                #     "five",
+                # -   "six"
+                # +   "SIX"
+                #   ]
+
+                lines = [
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 0,
+                    value: %([),
+                    collection_bookend: :open,
+                    complete_bookend: :open,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("one"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("two"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("three"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("four"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("five"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :delete,
+                    indentation_level: 1,
+                    value: %("six"),
+                    add_comma?: false,
+                  ),
+                  an_actual_line(
+                    type: :insert,
+                    indentation_level: 1,
+                    value: %("SIX"),
+                    add_comma?: false,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 0,
+                    value: %(]),
+                    collection_bookend: :close,
+                    complete_bookend: :close,
+                  ),
+                ]
+
+                line_tree_with_elisions = with_configuration(
+                  diff_elision_enabled: true,
+                  diff_elision_maximum: 2,
+                  diff_elision_padding: 2,
+                ) do
+                  described_class.call(lines)
+                end
+
+                # Result:
+                #
+                #   [
+                #     # ...
+                #     "three",
+                #     "four",
+                #     "five",
+                # -   "six",
+                # +   "SIX",
+                #   ]
+
+                expect(line_tree_with_elisions).to match([
+                  an_expected_line(
+                    type: :noop,
+                    indentation_level: 0,
+                    value: %([),
+                  ),
+                  an_expected_elision(
+                    indentation_level: 1,
+                    children: [
+                      an_expected_line(
+                        type: :noop,
+                        indentation_level: 1,
+                        value: %("one"),
+                        add_comma?: true,
+                        elided?: true,
+                      ),
+                      an_expected_line(
+                        type: :noop,
+                        indentation_level: 1,
+                        value: %("two"),
+                        add_comma?: true,
+                        elided?: true,
+                      ),
+                    ],
+                  ),
+                  an_expected_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("three"),
+                    add_comma?: true,
+                  ),
+                  an_expected_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("four"),
+                    add_comma?: true,
+                  ),
+                  an_expected_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("five"),
+                    add_comma?: true,
+                  ),
+                  an_expected_line(
+                    type: :delete,
+                    indentation_level: 1,
+                    value: %("six"),
+                    add_comma?: false,
+                  ),
+                  an_expected_line(
+                    type: :insert,
+                    indentation_level: 1,
+                    value: %("SIX"),
+                    add_comma?: false,
+                  ),
+                  an_expected_line(
+                    type: :noop,
+                    indentation_level: 0,
+                    value: %(]),
+                  ),
+                ])
+              end
+            end
+          end
+
+          context "and the only noops that exist are below the only non-noops that exist" do
+            context "and :padding is 0" do
+              it "elides the end of the noop so as to put it at the maximum" do
+                # Diff:
+                #
+                #   [
+                # -   "one",
+                # +   "ONE",
+                #     "two",
+                #     "three",
+                #     "four",
+                #     "five",
+                #   ]
+
+                lines = [
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 0,
+                    value: %([),
+                    collection_bookend: :open,
+                    complete_bookend: :open,
+                  ),
+                  an_actual_line(
+                    type: :delete,
+                    indentation_level: 1,
+                    value: %("one"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :insert,
+                    indentation_level: 1,
+                    value: %("ONE"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("two"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("three"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("four"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("five"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 0,
+                    value: %(]),
+                    collection_bookend: :close,
+                    complete_bookend: :close,
+                  ),
+                ]
+
+                line_tree_with_elisions = with_configuration(
+                  diff_elision_enabled: true,
+                  diff_elision_maximum: 3
+                ) do
+                  described_class.call(lines)
+                end
+
+                # Result:
+                #
+                #   [
+                # -   "one",
+                # +   "ONE",
+                #     "two",
+                #     "three",
+                #     "four",
+                #     # ...
+                #   ]
+
+                expect(line_tree_with_elisions).to match([
+                  an_expected_line(
+                    type: :noop,
+                    indentation_level: 0,
+                    value: %([),
+                  ),
+                  an_expected_line(
+                    type: :delete,
+                    indentation_level: 1,
+                    value: %("one"),
+                    add_comma?: true,
+                  ),
+                  an_expected_line(
+                    type: :insert,
+                    indentation_level: 1,
+                    value: %("ONE"),
+                    add_comma?: true,
+                  ),
+                  an_expected_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("two"),
+                    add_comma?: true,
+                  ),
+                  an_expected_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("three"),
+                    add_comma?: true,
+                  ),
+                  an_expected_elision(
+                    indentation_level: 1,
+                    children: [
+                      an_expected_line(
+                        type: :noop,
+                        indentation_level: 1,
+                        value: %("four"),
+                        add_comma?: true,
+                      ),
+                      an_expected_line(
+                        type: :noop,
+                        indentation_level: 1,
+                        value: %("five"),
+                        add_comma?: true,
+                      ),
+                    ]
+                  ),
+                  an_expected_line(
+                    type: :noop,
+                    indentation_level: 0,
+                    value: %(]),
+                  ),
+                ])
+              end
+            end
+
+            context "and :padding is more than 0" do
+              it "prevents a section around the non-noops from being elided" do
+                # Diff:
+                #
+                #   [
+                # -   "one",
+                # +   "ONE",
+                #     "two",
+                #     "three",
+                #     "four",
+                #     "five",
+                #     "six"
+                #   ]
+
+                lines = [
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 0,
+                    value: %([),
+                    collection_bookend: :open,
+                    complete_bookend: :open,
+                  ),
+                  an_actual_line(
+                    type: :delete,
+                    indentation_level: 1,
+                    value: %("one"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :insert,
+                    indentation_level: 1,
+                    value: %("ONE"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("two"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("three"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("four"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("five"),
+                    add_comma?: true,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("six"),
+                    add_comma?: false,
+                  ),
+                  an_actual_line(
+                    type: :noop,
+                    indentation_level: 0,
+                    value: %(]),
+                    collection_bookend: :close,
+                    complete_bookend: :close,
+                  ),
+                ]
+
+                line_tree_with_elisions = with_configuration(
+                  diff_elision_enabled: true,
+                  diff_elision_maximum: 2,
+                  diff_elision_padding: 2
+                ) do
+                  described_class.call(lines)
+                end
+
+                # Result:
+                #
+                #   [
+                # -   "one",
+                # +   "ONE",
+                #     "two",
+                #     "three",
+                #     "four",
+                #     # ...
+                #   ]
+
+                expect(line_tree_with_elisions).to match([
+                  an_expected_line(
+                    type: :noop,
+                    indentation_level: 0,
+                    value: %([),
+                  ),
+                  an_expected_line(
+                    type: :delete,
+                    indentation_level: 1,
+                    value: %("one"),
+                    add_comma?: true,
+                  ),
+                  an_expected_line(
+                    type: :insert,
+                    indentation_level: 1,
+                    value: %("ONE"),
+                    add_comma?: true,
+                  ),
+                  an_expected_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("two"),
+                    add_comma?: true,
+                  ),
+                  an_expected_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("three"),
+                    add_comma?: true,
+                  ),
+                  an_expected_line(
+                    type: :noop,
+                    indentation_level: 1,
+                    value: %("four"),
+                    add_comma?: true,
+                  ),
+                  an_expected_elision(
+                    indentation_level: 1,
+                    children: [
+                      an_expected_line(
+                        type: :noop,
+                        indentation_level: 1,
+                        value: %("five"),
+                        add_comma?: true,
+                      ),
+                      an_expected_line(
+                        type: :noop,
+                        indentation_level: 1,
+                        value: %("six"),
+                        add_comma?: false,
+                      ),
+                    ]
+                  ),
+                  an_expected_line(
+                    type: :noop,
+                    indentation_level: 0,
+                    value: %(]),
+                  ),
+                ])
+              end
+            end
+          end
+
           context "and the noops flank the non-noops" do
             context "and :padding is 0" do
-              it "elides the beginning of the first noop and the end of the second noop as to put them both at the maximum" do
+              it "elides the beginning of the first noop and the end of the second noop so as to put them both at the maximum" do
                 # Diff:
                 #
                 #   [
@@ -518,7 +1113,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
             end
 
             context "and :padding is more than 0" do
-              it "preserves a section around the non-noops from being elided" do
+              it "prevents a section around the non-noops from being elided" do
                 # Diff:
                 #
                 #   [
@@ -929,7 +1524,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
             end
 
             context "and :padding is more than 0" do
-              it "preserves a section around the non-noops from being elided" do
+              it "prevents a section around the non-noops from being elided" do
                 # Diff:
                 #
                 #   [
@@ -1601,7 +2196,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
               end
 
               context "and :padding is more than 0" do
-                it "preserves a section around the non-noops from being elided" do
+                it "prevents a section around the non-noops from being elided" do
                   # Diff:
                   #
                   #   [
@@ -2086,7 +2681,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
               end
 
               context "and the :padding is more than 0" do
-                it "preserves a section around the non-noops from being elided" do
+                it "prevents a section around the non-noops from being elided" do
                   # Diff:
                   #
                   #   [
@@ -2340,7 +2935,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
               end
 
               context "and :padding is more than 0" do
-                it "preserves a section around the non-noops from being elided"
+                it "prevents a section around the non-noops from being elided"
               end
             end
           end
@@ -2840,41 +3435,35 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                           indentation_level: 1,
                           value: %("alpha"),
                           add_comma?: true,
-                          elided: true,
                         ),
                         an_expected_line(
                           type: :noop,
                           indentation_level: 1,
                           value: %([),
                           collection_bookend: :open,
-                          elided: true,
                         ),
                         an_expected_line(
                           type: :noop,
                           indentation_level: 2,
                           value: %("beta"),
                           add_comma?: true,
-                          elided: true,
                         ),
                         an_expected_line(
                           type: :noop,
                           indentation_level: 2,
                           value: %("gamma"),
-                          elided: true,
                         ),
                         an_expected_line(
                           type: :noop,
                           indentation_level: 1,
                           value: %(]),
                           collection_bookend: :close,
-                          elided: true,
                         ),
                         an_expected_line(
                           type: :noop,
                           indentation_level: 1,
                           value: %("pi"),
                           add_comma?: true,
-                          elided: true,
                         ),
                       ]
                     ),

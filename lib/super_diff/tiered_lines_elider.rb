@@ -1,5 +1,7 @@
 module SuperDiff
   class TieredLinesElider
+    SIZE_OF_ELISION = 1
+
     extend AttrExtras.mixin
     include Helpers
 
@@ -78,10 +80,7 @@ module SuperDiff
           box.range.end == lines.size - 1
         end
 
-      if (
-        outermost_box?(box) &&
-        boxes_to_elide.map(&:indentation_level).uniq.size == 1
-      )
+      if one_dimensional_diff? && outermost_box?(box)
         if box_at_start_of_lines
           with_start_of_box_elided(box, lines)
         elsif box_at_end_of_lines
@@ -102,6 +101,10 @@ module SuperDiff
       box.indentation_level == min_indentation_level
     end
 
+    def one_dimensional_diff?
+      boxes_to_elide.map(&:indentation_level).uniq.size == 1
+    end
+
     def min_indentation_level
       boxes.
         map(&:indentation_level).
@@ -114,17 +117,16 @@ module SuperDiff
       set_of_boxes =
         normalized_box_groups_at_decreasing_indentation_levels_within(pane)
 
-      mega_boxes = set_of_boxes.flatten.uniq
-      mega_min = mega_boxes.map { |box| box.range.begin }.min
-      mega_max = mega_boxes.map { |box| box.range.end }.max
-      total_range_before_eliding = Range.new(mega_min, mega_max).size
+      flattened_boxes = set_of_boxes.flatten.uniq
+      total_min = flattened_boxes.map { |box| box.range.begin }.min
+      total_max = flattened_boxes.map { |box| box.range.end }.max
+      total_range_before_eliding = Range.new(total_min, total_max).size
 
       if total_range_before_eliding > maximum
         set_of_boxes.find do |boxes|
           total_range_after_eliding =
             total_range_before_eliding -
-            # Remember that the elision takes up one line
-            boxes.sum { |box| box.range.size - 1 }
+            boxes.sum { |box| box.range.size - SIZE_OF_ELISION }
           total_range_after_eliding <= maximum
         end
       else
@@ -200,8 +202,7 @@ module SuperDiff
     end
 
     def with_start_of_box_elided(box, lines)
-      # Remember: an elision takes up 1 line
-      amount_to_elide = box.range.size - maximum + 1
+      amount_to_elide = box.range.size - maximum + SIZE_OF_ELISION
       with_subset_of_lines_elided(
         lines,
         range: Range.new(
@@ -213,8 +214,7 @@ module SuperDiff
     end
 
     def with_end_of_box_elided(box, lines)
-      # Remember: an elision takes up 1 line
-      amount_to_elide = box.range.size - maximum + 1
+      amount_to_elide = box.range.size - maximum + SIZE_OF_ELISION
       range =
         if amount_to_elide > 0
           Range.new(box.range.end - amount_to_elide + 1, box.range.end)
@@ -230,8 +230,7 @@ module SuperDiff
     end
 
     def with_middle_of_box_elided(box, lines)
-      # Remember: an elision takes up 1 line
-      half_of_maximum, remainder = (maximum - 1).divmod(2)
+      half_of_maximum, remainder = (maximum - SIZE_OF_ELISION).divmod(2)
 
       opening_length, closing_length =
         half_of_maximum, half_of_maximum + remainder
