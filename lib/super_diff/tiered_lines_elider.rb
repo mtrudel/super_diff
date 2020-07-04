@@ -78,15 +78,16 @@ module SuperDiff
           box.range.end == lines.size - 1
         end
 
-      if outermost_box?(box)
-        if boxes_to_elide.size == 1
-          with_middle_of_box_elided(box, lines)
-        elsif box_at_start_of_lines
+      if (
+        outermost_box?(box) &&
+        boxes_to_elide.map(&:indentation_level).uniq.size == 1
+      )
+        if box_at_start_of_lines
           with_start_of_box_elided(box, lines)
         elsif box_at_end_of_lines
           with_end_of_box_elided(box, lines)
         else
-          raise "Can't figure out what to elide!"
+          with_middle_of_box_elided(box, lines)
         end
       else
         with_subset_of_lines_elided(

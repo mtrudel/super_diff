@@ -1571,7 +1571,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
         end
 
         context "and the line tree contains non-noops in addition to noops" do
-          context "and the only noops are above the only non-noops" do
+          context "and the only noops that exist are above the only non-noops that exist" do
             context "and the section of noops does not cross indentation level boundaries" do
               context "and :padding is 0" do
                 it "represents the smallest portion within the section as an elision (descending into sub-structures if necessary) to fit the whole section under the maximum" do
@@ -1839,11 +1839,288 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                 end
               end
 
-              context "and :padding is more than 0"
+              context "and :padding is more than 0" do
+                it "preserves a section around the non-noops from being elided" do
+                  # Diff:
+                  #
+                  #   [
+                  #     "alpha",
+                  #     "beta",
+                  #     [
+                  #       "proton",
+                  #       [
+                  #         "electron",
+                  #         "photon",
+                  #         "gluon"
+                  #       ],
+                  #       "neutron"
+                  #     ],
+                  # -   "digamma",
+                  # +   "waw"
+                  #   ]
+
+                  lines = [
+                    line(
+                      type: :noop,
+                      indentation_level: 0,
+                      value: %([),
+                      collection_bookend: :open,
+                      complete_bookend: :open,
+                    ),
+                    line(
+                      type: :noop,
+                      indentation_level: 1,
+                      value: %("alpha"),
+                      add_comma: true,
+                    ),
+                    line(
+                      type: :noop,
+                      indentation_level: 1,
+                      value: %("beta"),
+                      add_comma: true,
+                    ),
+                    line(
+                      type: :noop,
+                      indentation_level: 1,
+                      value: %([),
+                      collection_bookend: :open,
+                    ),
+                    line(
+                      type: :noop,
+                      indentation_level: 2,
+                      value: %("proton"),
+                      add_comma: true,
+                    ),
+                    line(
+                      type: :noop,
+                      indentation_level: 2,
+                      value: %([),
+                      collection_bookend: :open,
+                    ),
+                    line(
+                      type: :noop,
+                      indentation_level: 3,
+                      value: %("electron"),
+                      add_comma: true,
+                    ),
+                    line(
+                      type: :noop,
+                      indentation_level: 3,
+                      value: %("photon"),
+                      add_comma: true,
+                    ),
+                    line(
+                      type: :noop,
+                      indentation_level: 3,
+                      value: %("gluon"),
+                    ),
+                    line(
+                      type: :noop,
+                      indentation_level: 2,
+                      value: %(]),
+                      add_comma: true,
+                      collection_bookend: :close,
+                    ),
+                    line(
+                      type: :noop,
+                      indentation_level: 2,
+                      value: %("neutron"),
+                    ),
+                    line(
+                      type: :noop,
+                      indentation_level: 1,
+                      value: %(]),
+                      add_comma: true,
+                      collection_bookend: :close,
+                    ),
+                    line(
+                      type: :delete,
+                      indentation_level: 1,
+                      value: %("digamma"),
+                      add_comma: true,
+                    ),
+                    line(
+                      type: :insert,
+                      indentation_level: 1,
+                      value: %("waw"),
+                      add_comma: true,
+                    ),
+                    line(
+                      type: :noop,
+                      indentation_level: 0,
+                      value: %(]),
+                      collection_bookend: :close,
+                      complete_bookend: :close,
+                    ),
+                  ]
+
+                  line_tree_with_elisions = with_configuration(
+                    diff_elision_enabled: true,
+                    diff_elision_maximum: 5,
+                    diff_elision_padding: 4
+                  ) do
+                    described_class.call(lines)
+                  end
+
+                  # Result:
+                  #
+                  #   [
+                  #     # ...
+                  #     [
+                  #       # ...
+                  #       [
+                  #         # ...
+                  #         "gluon"
+                  #       ],
+                  #       "neutron"
+                  #     ],
+                  # -   "digamma",
+                  # +   "waw"
+                  #   ]
+
+                  expect(line_tree_with_elisions).to match([
+                    an_object_having_attributes(
+                      type: :noop,
+                      indentation_level: 0,
+                      value: %([),
+                      add_comma: false,
+                      children: [],
+                      elided?: false,
+                    ),
+                    expected_elision(
+                      indentation_level: 1,
+                      children: [
+                        an_object_having_attributes(
+                          type: :noop,
+                          indentation_level: 1,
+                          value: %("alpha"),
+                          add_comma: true,
+                          children: [],
+                          elided?: false,
+                        ),
+                        an_object_having_attributes(
+                          type: :noop,
+                          indentation_level: 1,
+                          value: %("beta"),
+                          add_comma: true,
+                          children: [],
+                          elided?: false,
+                        ),
+                      ],
+                    ),
+                    an_object_having_attributes(
+                      type: :noop,
+                      indentation_level: 1,
+                      value: %([),
+                      add_comma: false,
+                      children: [],
+                      elided?: false,
+                    ),
+                    expected_elision(
+                      indentation_level: 2,
+                      children: [
+                        an_object_having_attributes(
+                          type: :noop,
+                          indentation_level: 2,
+                          value: %("proton"),
+                          add_comma: true,
+                          children: [],
+                          elided?: true,
+                        ),
+                      ],
+                    ),
+                    an_object_having_attributes(
+                      type: :noop,
+                      indentation_level: 2,
+                      value: %([),
+                      add_comma: false,
+                      children: [],
+                      elided?: false,
+                    ),
+                    expected_elision(
+                      indentation_level: 3,
+                      children: [
+                        an_object_having_attributes(
+                          type: :noop,
+                          indentation_level: 3,
+                          value: %("electron"),
+                          add_comma: true,
+                          children: [],
+                          elided?: true,
+                        ),
+                        an_object_having_attributes(
+                          type: :noop,
+                          indentation_level: 3,
+                          value: %("photon"),
+                          add_comma: true,
+                          children: [],
+                          elided?: true,
+                        ),
+                      ],
+                    ),
+                    an_object_having_attributes(
+                      type: :noop,
+                      indentation_level: 3,
+                      value: %("gluon"),
+                      add_comma: false,
+                      children: [],
+                      elided?: false,
+                    ),
+                    an_object_having_attributes(
+                      type: :noop,
+                      indentation_level: 2,
+                      value: %(]),
+                      add_comma: true,
+                      children: [],
+                      elided?: false,
+                    ),
+                    an_object_having_attributes(
+                      type: :noop,
+                      indentation_level: 2,
+                      value: %("neutron"),
+                      add_comma: false,
+                      children: [],
+                      elided?: false,
+                    ),
+                    an_object_having_attributes(
+                      type: :noop,
+                      indentation_level: 1,
+                      value: %(]),
+                      add_comma: true,
+                      children: [],
+                      elided?: false,
+                    ),
+                    an_object_having_attributes(
+                      type: :delete,
+                      indentation_level: 1,
+                      value: %("digamma"),
+                      add_comma: true,
+                      children: [],
+                      elided?: false,
+                    ),
+                    an_object_having_attributes(
+                      type: :insert,
+                      indentation_level: 1,
+                      value: %("waw"),
+                      add_comma: true,
+                      children: [],
+                      elided?: false,
+                    ),
+                    an_object_having_attributes(
+                      type: :noop,
+                      indentation_level: 0,
+                      value: %(]),
+                      add_comma: false,
+                      children: [],
+                      elided?: false,
+                    ),
+                  ])
+                end
+              end
             end
           end
 
-          context "and the only noops are below the only non-noops" do
+          context "and the only noops that exist are below the only non-noops that exist" do
             context "and the section of noops does not cross indentation level boundaries" do
               context "and :padding is 0" do
                 it "represents the smallest portion within the section as an elision (descending into sub-structures if necessary) to fit the whole section under the maximum" do
@@ -2012,8 +2289,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                       children: [],
                       elided?: false,
                     ),
-                    an_object_having_attributes(
-                      type: :elision,
+                    expected_elision(
                       indentation_level: 2,
                       children: [
                         an_object_having_attributes(
@@ -2315,8 +2591,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                       children: [],
                       elided?: false,
                     ),
-                    an_object_having_attributes(
-                      type: :elision,
+                    expected_elision(
                       indentation_level: 3,
                       children: [
                         an_object_having_attributes(
@@ -2328,7 +2603,6 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                           elided?: true,
                         ),
                       ],
-                      elided?: true,
                     ),
                     an_object_having_attributes(
                       type: :noop,
@@ -2338,8 +2612,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                       children: [],
                       elided?: false,
                     ),
-                    an_object_having_attributes(
-                      type: :elision,
+                    expected_elision(
                       indentation_level: 2,
                       children: [
                         an_object_having_attributes(
@@ -2351,7 +2624,6 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                           elided?: true,
                         ),
                       ],
-                      elided?: true,
                     ),
                     an_object_having_attributes(
                       type: :noop,
@@ -2361,8 +2633,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                       children: [],
                       elided?: false,
                     ),
-                    an_object_having_attributes(
-                      type: :elision,
+                    expected_elision(
                       indentation_level: 1,
                       children: [
                         an_object_having_attributes(
@@ -2382,7 +2653,6 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                           elided?: true,
                         ),
                       ],
-                      elided?: true,
                     ),
                     an_object_having_attributes(
                       type: :noop,
@@ -2398,9 +2668,13 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
             end
 
             context "and the section of noops crosses indentation level boundaries" do
-              context "and :padding is 0"
+              context "and :padding is 0" do
+                it "represents the smallest portion within the section as an elision (descending into sub-structures if necessary) to fit the whole section under the maximum"
+              end
 
-              context "and :padding is more than 0"
+              context "and :padding is more than 0" do
+                it "preserves a section around the non-noops from being elided"
+              end
             end
           end
 
@@ -2594,8 +2868,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                       children: [],
                       elided?: false,
                     ),
-                    an_object_having_attributes(
-                      type: :elision,
+                    expected_elision(
                       indentation_level: 1,
                       children: [
                         an_object_having_attributes(
@@ -2647,7 +2920,6 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                           elided?: true,
                         ),
                       ],
-                      elided?: true,
                     ),
                     an_object_having_attributes(
                       type: :noop,
@@ -2657,8 +2929,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                       children: [],
                       elided?: false,
                     ),
-                    an_object_having_attributes(
-                      type: :elision,
+                    expected_elision(
                       indentation_level: 2,
                       children: [
                         an_object_having_attributes(
@@ -2678,7 +2949,6 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                           elided?: true,
                         ),
                       ],
-                      elided?: true,
                     ),
                     an_object_having_attributes(
                       type: :noop,
@@ -2704,8 +2974,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                       children: [],
                       elided?: false,
                     ),
-                    an_object_having_attributes(
-                      type: :elision,
+                    expected_elision(
                       indentation_level: 3,
                       children: [
                         an_object_having_attributes(
@@ -2717,7 +2986,6 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                           elided?: true,
                         ),
                       ],
-                      elided?: true,
                     ),
                     an_object_having_attributes(
                       type: :noop,
@@ -2727,8 +2995,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                       children: [],
                       elided?: false,
                     ),
-                    an_object_having_attributes(
-                      type: :elision,
+                    expected_elision(
                       indentation_level: 2,
                       children: [
                         an_object_having_attributes(
@@ -2764,7 +3031,6 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                           elided?: true,
                         ),
                       ],
-                      elided?: true,
                     ),
                     an_object_having_attributes(
                       type: :noop,
@@ -2774,8 +3040,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                       children: [],
                       elided?: false,
                     ),
-                    an_object_having_attributes(
-                      type: :elision,
+                    expected_elision(
                       indentation_level: 1,
                       children: [
                         an_object_having_attributes(
@@ -2795,7 +3060,6 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                           elided?: true,
                         ),
                       ],
-                      elided?: true,
                     ),
                     an_object_having_attributes(
                       type: :noop,
@@ -2945,8 +3209,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                       children: [],
                       elided: false,
                     ),
-                    an_object_having_attributes(
-                      type: :elision,
+                    expected_elision(
                       indentation_level: 1,
                       children: [
                         an_object_having_attributes(
@@ -3257,8 +3520,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                 children: [],
                 elided?: false,
               ),
-              an_object_having_attributes(
-                type: :elision,
+              expected_elision(
                 indentation_level: 2,
                 children: [
                   an_object_having_attributes(
@@ -3567,8 +3829,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                 children: [],
                 elided?: false,
               ),
-              an_object_having_attributes(
-                type: :elision,
+              expected_elision(
                 indentation_level: 1,
                 children: [
                   an_object_having_attributes(
@@ -3620,7 +3881,6 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                     elided?: true,
                   ),
                 ],
-                elided?: true,
               ),
               an_object_having_attributes(
                 type: :noop,
@@ -3630,8 +3890,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                 children: [],
                 elided?: false,
               ),
-              an_object_having_attributes(
-                type: :elision,
+              expected_elision(
                 indentation_level: 2,
                 children: [
                   an_object_having_attributes(
@@ -3651,7 +3910,6 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                     elided?: true,
                   ),
                 ],
-                elided?: true,
               ),
               an_object_having_attributes(
                 type: :noop,
@@ -3693,8 +3951,7 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                 children: [],
                 elided?: false,
               ),
-              an_object_having_attributes(
-                type: :elision,
+              expected_elision(
                 indentation_level: 2,
                 children: [
                   an_object_having_attributes(
@@ -3730,7 +3987,6 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
                     elided?: true,
                   ),
                 ],
-                elided?: true,
               ),
               an_object_having_attributes(
                 type: :noop,
@@ -3773,5 +4029,37 @@ RSpec.describe SuperDiff::TieredLinesElider, type: :unit do
 
   def line(**args)
     SuperDiff::Line.new(**args)
+  end
+
+  def expected_line(
+    type:,
+    indentation_level:,
+    value:,
+    add_comma: false,
+    children: [],
+    **rest
+  )
+    an_object_having_attributes(
+      type: type,
+      indentation_level: indentation_level,
+      value: value,
+      add_comma: add_comma,
+      children: children,
+      elided?: rest.fetch(:elided?, false)
+    )
+  end
+
+  def expected_elision(indentation_level:, children:)
+    an_object_having_attributes(
+      type: :elision,
+      value: "# ...",
+      indentation_level: indentation_level,
+      children: children.map do |child|
+        an_object_having_attributes(
+          child.base_matcher.expected.merge(elided?: true)
+        )
+      end,
+      elided?: true,
+    )
   end
 end
