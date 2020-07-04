@@ -80,7 +80,7 @@ module SuperDiff
           box.range.end == lines.size - 1
         end
 
-      if one_dimensional_diff? && outermost_box?(box)
+      if one_dimensional_line_tree? && outermost_box?(box)
         if box_at_start_of_lines
           with_start_of_box_elided(box, lines)
         elsif box_at_end_of_lines
@@ -98,36 +98,38 @@ module SuperDiff
     end
 
     def outermost_box?(box)
-      box.indentation_level == min_indentation_level
+      box.indentation_level == all_indentation_levels.min
     end
 
-    def one_dimensional_diff?
-      boxes_to_elide.map(&:indentation_level).uniq.size == 1
+    def one_dimensional_line_tree?
+      all_indentation_levels.size == 1
     end
 
-    def min_indentation_level
-      boxes.
+    def all_indentation_levels
+      lines.
         map(&:indentation_level).
         select { |indentation_level| indentation_level > 0 }.
-        uniq.
-        min
+        uniq
     end
 
     def find_boxes_to_elide_within(pane)
       set_of_boxes =
         normalized_box_groups_at_decreasing_indentation_levels_within(pane)
 
-      flattened_boxes = set_of_boxes.flatten.uniq
-      total_min = flattened_boxes.map { |box| box.range.begin }.min
-      total_max = flattened_boxes.map { |box| box.range.end }.max
-      total_range_before_eliding = Range.new(total_min, total_max).size
+      # flattened_boxes = set_of_boxes.flatten.uniq
+      # total_min = flattened_boxes.map { |box| box.range.begin }.min
+      # total_max = flattened_boxes.map { |box| box.range.end }.max
+      # total_size_before_eliding = Range.new(total_min, total_max).size
+      total_size_before_eliding = lines[pane.range].
+        reject(&:complete_bookend?).
+        size
 
-      if total_range_before_eliding > maximum
+      if total_size_before_eliding > maximum
         set_of_boxes.find do |boxes|
-          total_range_after_eliding =
-            total_range_before_eliding -
+          total_size_after_eliding =
+            total_size_before_eliding -
             boxes.sum { |box| box.range.size - SIZE_OF_ELISION }
-          total_range_after_eliding <= maximum
+          total_size_after_eliding <= maximum
         end
       else
         []
