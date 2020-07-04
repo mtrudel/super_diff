@@ -116,10 +116,6 @@ module SuperDiff
       set_of_boxes =
         normalized_box_groups_at_decreasing_indentation_levels_within(pane)
 
-      # flattened_boxes = set_of_boxes.flatten.uniq
-      # total_min = flattened_boxes.map { |box| box.range.begin }.min
-      # total_max = flattened_boxes.map { |box| box.range.end }.max
-      # total_size_before_eliding = Range.new(total_min, total_max).size
       total_size_before_eliding = lines[pane.range].
         reject(&:complete_bookend?).
         size

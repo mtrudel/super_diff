@@ -21,11 +21,11 @@
   ``` ruby
   SuperDiff.configure do |config|
     config.diff_elision_enabled = true
-    config.diff_elision_threshold = 10
+    config.diff_elision_maximum = 10
   end
   ```
 
-  Here, `diff_elision_threshold` controls the minimum number of lines that are
+  Here, `diff_elision_maximum` controls the minimum number of lines that are
   changed that you want to see in between lines that are unchanged (everything
   else will be elided as much as possible in a way that makes sense). Here is
   another possible configuration:
@@ -33,7 +33,7 @@
   ``` ruby
   SuperDiff.configure do |config|
     config.diff_elision_enabled = true
-    config.diff_elision_threshold = 10
+    config.diff_elision_maximum = 10
     config.diff_elision_padding = 5
   end
   ```

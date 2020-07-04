@@ -42,7 +42,7 @@ shared_examples_for "a matcher that supports elided diffs" do
               color_enabled: color_enabled,
               configuration: {
                 diff_elision_enabled: true,
-                diff_elision_threshold: 3,
+                diff_elision_maximum: 3,
               },
             )
 
@@ -68,14 +68,12 @@ shared_examples_for "a matcher that supports elided diffs" do
               diff: proc {
                 plain_line %|  [|
                 gamma_line %|    # ...|
-                plain_line %|    "Algeria",|
                 plain_line %|    "American Samoa",|
                 plain_line %|    "Andorra",|
                 alpha_line %|-   "Angola",|
                 beta_line  %|+   "Anguilla",|
                 plain_line %|    "Antarctica",|
                 plain_line %|    "Antigua And Barbuda",|
-                plain_line %|    "Argentina",|
                 gamma_line %|    # ...|
                 plain_line %|  ]|
               },
@@ -129,7 +127,7 @@ shared_examples_for "a matcher that supports elided diffs" do
               color_enabled: color_enabled,
               configuration: {
                 diff_elision_enabled: true,
-                diff_elision_threshold: 2,
+                diff_elision_maximum: 2,
                 diff_elision_padding: 3,
               },
             )
@@ -156,6 +154,7 @@ shared_examples_for "a matcher that supports elided diffs" do
               diff: proc {
                 plain_line %|  [|
                 gamma_line %|    # ...|
+                plain_line %|    "Albania",|
                 plain_line %|    "Algeria",|
                 plain_line %|    "American Samoa",|
                 plain_line %|    "Andorra",|
@@ -164,6 +163,7 @@ shared_examples_for "a matcher that supports elided diffs" do
                 plain_line %|    "Antarctica",|
                 plain_line %|    "Antigua And Barbuda",|
                 plain_line %|    "Argentina",|
+                plain_line %|    "Armenia",|
                 gamma_line %|    # ...|
                 plain_line %|  ]|
               },
@@ -364,7 +364,7 @@ shared_examples_for "a matcher that supports elided diffs" do
             color_enabled: color_enabled,
             configuration: {
               diff_elision_enabled: true,
-              diff_elision_threshold: 10,
+              diff_elision_maximum: 10,
             },
           )
 
