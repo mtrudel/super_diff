@@ -184,7 +184,7 @@ module RSpec
 
               boundary_line =
                 locatable_exception_lines.find do |line, index|
-                  line[:text].strip.empty? || line[:text].match?(/^    /)
+                  line[:text].strip.empty? || line[:text].match(/^    /)
                 end
 
               if boundary_line
