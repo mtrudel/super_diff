@@ -37,7 +37,7 @@ module SuperDiff
     end
 
     def self.already_colorized?(text)
-      text.match?(/\e\[\d+m/)
+      text.match(/\e\[\d+m/)
     end
 
     def self.inspect_colors_in(text)
